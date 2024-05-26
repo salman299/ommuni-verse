@@ -25,7 +25,8 @@ class Region(CustomTimeStampModel):
     """Region model."""
 
     name = models.CharField(max_length=30, unique=True)
-    country = models.CharField(blank=True, max_length=20, verbose_name='Country')
+    country = models.CharField(
+        blank=True, max_length=20, verbose_name='Country')
 
     @property
     def representation(self):
@@ -49,11 +50,13 @@ class Region(CustomTimeStampModel):
 
         db_table = 'region'
 
+
 class Area(models.Model):
     """Area model."""
     name = models.CharField(blank=True, max_length=20, verbose_name='Name')
     city = models.CharField(blank=True, max_length=20, verbose_name='City')
-    council = models.CharField(blank=True, max_length=30, verbose_name='Council')
+    council = models.CharField(
+        blank=True, max_length=30, verbose_name='Council')
     region = models.ForeignKey(
         Region, related_name='region', null=True, blank=True, on_delete=models.CASCADE,
     )
@@ -123,16 +126,18 @@ class UserProfile(models.Model):
     personal_email = models.EmailField(max_length=70, blank=True, null=True)
     date_of_birth = models.DateField(null=True, blank=True)
     nic = models.CharField(
-        max_length=20, unique=True, verbose_name='CNIC', help_text='National ID number', default='99999-9999999-9',
+        max_length=20, unique=True, verbose_name='CNIC', help_text='National ID number', null=True
     )
-    gender = models.CharField(max_length=1, choices=constants.GENDER_CHOICES)
+    gender = models.CharField(
+        max_length=1, choices=constants.GENDER_CHOICES, blank=True
+    )
     marital_status = models.IntegerField(
-        choices=constants.MARITAL_STATUS_CHOICES, default=constants.SINGLE
+        choices=constants.MARITAL_STATUS_CHOICES, default=constants.SINGLE,
     )
     cellphone_number = models.CharField(null=True, blank=True, max_length=30)
     whatsapp_cellphone_number = models.CharField(
-        null=True, blank=True, max_length=30)
-
+        null=True, blank=True, max_length=30
+    )
     emergency_contact_name = models.CharField(
         null=True, blank=True, max_length=50,
     )
@@ -189,6 +194,7 @@ class UserProfile(models.Model):
         db_table = 'user_profile'
         abstract = True
 
+
 def avatar_uploading_path(instance, filename=''):
     """
     Avatar uploading path.
@@ -200,19 +206,23 @@ def avatar_uploading_path(instance, filename=''):
     return f'{instance.person_id}/Personal_Docs/{BUCKET_FOLDER_NAME}/{filename}'
 
 # Add Cache here
+
+# pylint: disable=no-member
 class Person(UserProfile):
     """Person model."""
 
-    person_id = models.CharField(max_length=20, unique=True, verbose_name='Person ID')
-    
-    area = models.ForeignKey(Area, related_name='area', on_delete=models.CASCADE)
+    person_id = models.CharField(
+        max_length=20, unique=True, verbose_name='Person ID')
+
+    area = models.ForeignKey(Area, related_name='area',
+                             on_delete=models.CASCADE)
 
     avatar = models.ImageField(
         upload_to=avatar_uploading_path, verbose_name='Profile Picture', null=True, blank=True, max_length=200)
     thumbnail = models.ImageField(
         upload_to=avatar_uploading_path, verbose_name='Profile Thumbnail', null=True, blank=True, max_length=200)
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
@@ -290,7 +300,6 @@ class Person(UserProfile):
         """
         return f'{self.full_name} - {self.person_id}'
 
-
     @property
     def representation(self):
         """
@@ -307,7 +316,7 @@ class Person(UserProfile):
         :return:
         """
         return self.unique_name
-    
+
     class Meta:
         """Meta for person model."""
 
@@ -315,5 +324,5 @@ class Person(UserProfile):
         verbose_name_plural = 'People'
         ordering = ['full_name']
         permissions = (
-            
+
         )
