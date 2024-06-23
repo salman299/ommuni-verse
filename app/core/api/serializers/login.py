@@ -50,6 +50,16 @@ class RegisterSerializer(UserSerializer):
             raise serializers.ValidationError(
                 'Username should only contain letters and numbers')
         return username
+    
+    def validate_email(self, email):
+        """
+        Validate Email
+        """
+        if User.objects.filter(email=email).first():
+            raise serializers.ValidationError(
+                'A user with that email already exists.'
+            )
+        return email
 
     def create(self, validated_data):
         validated_data.pop('confirm_password')
