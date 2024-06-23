@@ -13,5 +13,7 @@ fi
 
 # python manage.py flush --no-input
 python manage.py migrate
+python manage.py create_dot_application
+python manage.py populate_regions_and_areas
 
 exec "$@"

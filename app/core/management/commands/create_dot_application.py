@@ -6,7 +6,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         # Define your application data
-        client_id = "public1"
+        client_id = "public"
         grant_type = Application.GRANT_PASSWORD
         application_name = "Public Application"
 
