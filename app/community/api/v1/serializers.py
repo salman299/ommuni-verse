@@ -8,6 +8,7 @@ from app.community.models import (
     CommunityMembership,
     CommunityJoinRequest,
 )
+from app.core.api.serializers.area import AreaSerializer
 
 User = get_user_model()
 
@@ -24,6 +25,8 @@ class CommunityDetailSerializer(serializers.ModelSerializer):
 
 class CommunitySerializer(serializers.ModelSerializer):
     details = CommunityDetailSerializer(write_only=True)
+    area_details = AreaSerializer(source='area')
+
     owner = serializers.SlugRelatedField(
         slug_field='username',
         queryset=User.objects.all(),
@@ -32,7 +35,7 @@ class CommunitySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Community
-        fields = '__all__'
+        fields = ('slug', 'name', 'description', 'is_published', 'is_active', 'area', 'details', 'area_details', 'owner')
         write_only_fields = ('name', 'description', 'area', 'is_published', 'slug')
         extra_kwargs = {'area': {'required': True}} 
 
