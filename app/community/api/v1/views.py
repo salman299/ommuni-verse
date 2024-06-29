@@ -41,7 +41,7 @@ class CommunityViewSet(AuditMixin, viewsets.ModelViewSet):
     list: List of all communities accessible to the authenticated user
     public: List of active and published comminities.
     """
-    queryset = Community.objects.all()
+    queryset = Community.objects.all().select_related('area')
     serializer_class = CommunitySerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'slug'
