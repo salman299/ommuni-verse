@@ -13,7 +13,7 @@ from .models import (
 # Register your models here.
 @admin.register(Community)
 class CommunityAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_published', 'is_active', 'area')
+    list_display = ('name', 'is_published', 'is_active', 'area', 'cover_image', 'logo', 'color')
     list_filter = ('is_published', 'is_active')
     search_fields = ('name', 'description')
 

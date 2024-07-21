@@ -34,6 +34,9 @@ class Community(BaseAuditModel):
     is_published = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     area = models.ForeignKey(Area, on_delete=models.SET_NULL, null=True)
+    logo = models.ImageField(upload_to='community_logos/', null=True, blank=True)
+    cover_image = models.ImageField(upload_to='community_cover_images/', null=True, blank=True)
+    color = models.CharField(max_length=7, null=True, blank=True)
 
     def __str__(self):
         return self.name

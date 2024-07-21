@@ -24,8 +24,7 @@ class CommunityDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ('community',)
 
 class CommunitySerializer(serializers.ModelSerializer):
-    details = CommunityDetailSerializer(write_only=True)
-    area_details = AreaSerializer(source='area')
+    area_details = AreaSerializer(source='area', read_only=True)
 
     owner = serializers.SlugRelatedField(
         slug_field='username',
@@ -35,8 +34,11 @@ class CommunitySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Community
-        fields = ('slug', 'name', 'description', 'is_published', 'is_active', 'area', 'details', 'area_details', 'owner')
-        write_only_fields = ('name', 'description', 'area', 'is_published', 'slug')
+        fields = (
+            'slug', 'name', 'description', 'is_published', 'is_active', 'area',
+            'area_details', 'owner', 'color', 'logo', 'cover_image',
+        )
+        write_only_fields = ('name', 'description', 'area', 'is_published', 'slug', 'color', 'logo', 'cover_image')
         extra_kwargs = {'area': {'required': True}} 
 
     def get_owner(self, object):
@@ -52,10 +54,9 @@ class CommunitySerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
-        details_data = validated_data.pop('details')
         owner = validated_data.pop('owner')
         community = Community.objects.create(**validated_data)
-        CommunityDetail.objects.create(community=community, **details_data)
+        CommunityDetail.objects.create(community=community)
         CommunityMembership.objects.get_or_create(community=community, user=owner, role=CommunityMembership.OWNER)
         return community
 
@@ -64,12 +65,6 @@ class CommunitySerializer(serializers.ModelSerializer):
         instance.description = validated_data.get('description', instance.description)
         instance.is_published = validated_data.get('is_published', instance.is_published)
         instance.area = validated_data.get('area', instance.area)
-        if validated_data.get('details'):
-            details_data = validated_data.pop('details')
-            details_instance = instance.detail
-            details_instance.additional_info = details_data.get('additional_info', details_instance.additional_info)
-            details_instance.rules = details_data.get('rules', details_instance.rules)
-            details_instance.save()
         instance.save()
         return instance
 
