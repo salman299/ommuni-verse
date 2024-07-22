@@ -52,6 +52,8 @@ class IsOwnerOrManager(permissions.BasePermission):
         user = request.user
         if not user.is_authenticated:
             return False
+        if user.is_staff or user.is_superuser:
+            return True
         membership = CommunityMembership.objects.filter(
             community_id=community_id,
             user=user,
@@ -59,9 +61,14 @@ class IsOwnerOrManager(permissions.BasePermission):
         ).exists()
         return membership
 
+
     def has_object_permission(self, request, view, obj):
         community_id = view.kwargs.get('community_pk')
         user = request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_staff or user.is_superuser:
+            return True
         membership = CommunityMembership.objects.filter(
             community_id=community_id,
             user=user,

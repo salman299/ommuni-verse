@@ -58,7 +58,6 @@ class CommunityViewSet(AuditMixin, viewsets.ModelViewSet):
 
         return [permission() for permission in permission_classes]
 
-
     def get_queryset(self):
         user = self.request.user
 
@@ -78,13 +77,6 @@ class CommunityViewSet(AuditMixin, viewsets.ModelViewSet):
             Q(id__in=managed_communities) |
             Q(id__in=member_communities)
         ).distinct()
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permission() for permission in [IsAuthenticated, IsOwnerOrReadOnly]]
-        elif self.action in ['update', 'partial_update']:
-            return [permission() for permission in [IsOwner]]
-        return super().get_permissions()
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
