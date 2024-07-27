@@ -8,47 +8,27 @@ from app.community.models import (
     CommunityMembership,
     CommunityJoinRequest,
 )
-from app.core.api.serializers.area import AreaSerializer
 
 User = get_user_model()
 
-class CommunityUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model =  User
-        fields = ("username", )
-
-class CommunityDetailSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CommunityDetail
-        fields = ('additional_info', 'rules', 'community',)
-        read_only_fields = ('community',)
-
-class CommunitySerializer(serializers.ModelSerializer):
-    area_details = AreaSerializer(source='area', read_only=True)
-
-    owner = serializers.SlugRelatedField(
-        slug_field='username',
-        queryset=User.objects.all(),
-        write_only=True
-    )
+class ManageCommunitySerializer(serializers.ModelSerializer):
+    area_name = serializers.CharField(source='area.name', read_only=True)
+    total_participants = serializers.SerializerMethodField(read_only=True)
+    owner = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all(), write_only=True)
 
     class Meta:
         model = Community
-        fields = (
-            'slug', 'name', 'description', 'is_published', 'is_active', 'area',
-            'area_details', 'owner', 'color', 'logo', 'cover_image',
-        )
-        write_only_fields = ('name', 'description', 'area', 'is_published', 'slug', 'color', 'logo', 'cover_image')
-        extra_kwargs = {'area': {'required': True}} 
+        fields = ['id', 'slug', 'name', 'description', 'is_published', 'is_active', 
+                  'area_name', 'logo', 'cover_image', 'color', 
+                  'total_participants', 'owner']
 
-    def get_owner(self, object):
-        """
-        Get the owner of the community.
-        """
-        return CommunityMembership.objects.filter(role=CommunityMembership.OWNER).first()
+    def get_owner(self, obj):
+        return obj.memberships.filter(role=CommunityMembership.OWNER).first()
 
+    def get_total_participants(self, obj):
+        return obj.memberships.count()
+    
     def validate_slug(self, value):
-        # Check if slug contains only lowercase alphabets and dashes
         if not re.match(r'^[a-z-]+$', value):
             raise ValidationError("Slug can only contain lowercase letters and dashes.")
         return value
@@ -69,19 +49,43 @@ class CommunitySerializer(serializers.ModelSerializer):
         return instance
 
 
-class UserCommunities(serializers.ModelSerializer):
-    details = CommunityDetailSerializer(write_only=True)
-    
+class PublicCommunitySerializer(serializers.ModelSerializer):
+    is_member = serializers.SerializerMethodField()
+    area_name = serializers.CharField(source='area.name', read_only=True)
+
     class Meta:
         model = Community
-        fields = '__all__'
+        fields = ['id', 'slug', 'name', 'description', 'is_published', 
+                  'area_name', 'logo', 'cover_image', 'color', 'is_member']
+
+    def get_is_member(self, obj):
+        user = self.context['user']
+        return obj.memberships.filter(user=user).exists()
+
+class PublicCommunityDetailSerializer(serializers.ModelSerializer):
+    is_member = serializers.SerializerMethodField()
+    area_name = serializers.CharField(source='area.name', read_only=True)
+    total_participants = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Community
+        fields = ['id', 'slug', 'name', 'description', 'is_published', 
+                  'area_name', 'logo', 'cover_image', 'color', 'is_member',
+                  'total_participants']
+
+    def get_is_member(self, obj):
+        user = self.context['user']
+        return obj.memberships.filter(user=user).exists()
+
+    def get_total_participants(self, obj):
+        return obj.memberships.count()
+
 
 class CommunityMembershipSerializer(serializers.ModelSerializer):
     user = serializers.SlugRelatedField(
         slug_field='username',
         queryset=User.objects.all()
     )
-
     class Meta:
         model = CommunityMembership
         fields = ('user', 'role')
