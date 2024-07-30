@@ -3,10 +3,11 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 # Third-party imports
-from rest_framework import mixins, status, viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework import mixins, status, viewsets, generics, filters
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+
 
 # Local imports
 from app.community.models import (
@@ -14,11 +15,13 @@ from app.community.models import (
     CommunityJoinRequest,
     CommunityMembership,
 )
-from app.community.permissions import IsOwner, IsOwnerOrManager, IsOwnerOrReadOnly
+from app.community.permissions import IsCommunityAdminOrManager, IsOwnerOrManager
 from app.community.api.v1.serializers import (
     CommunityJoinRequestSerializer,
     CommunityMembershipSerializer,
-    CommunitySerializer,
+    ManageCommunitySerializer,
+    PublicCommunityDetailSerializer,
+    PublicCommunitySerializer,
 )
 
 class AuditMixin:
@@ -31,75 +34,55 @@ class AuditMixin:
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
-
-class CommunityViewSet(AuditMixin, viewsets.ModelViewSet):
-    """
-    create/update: Only allow admins to create amd update communities
-    retreive: Get community by slug
-    create: Only allow Admins to create the community
-    update: Allow admins or admin managers to update the community
-    list: List of all communities accessible to the authenticated user
-    public: List of active and published comminities.
-    """
-    queryset = Community.objects.all().select_related('area')
-    serializer_class = CommunitySerializer
+class PublicCommunityListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    queryset = Community.objects.filter(is_active=True, is_published=True)
+    serializer_class = PublicCommunitySerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['area__name', 'area__city']
+    search_fields = ['name', 'description']
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['user'] = self.request.user
+        return context
+
+class PublicCommunityDetailView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Community.objects.filter(is_active=True, is_published=True)
+    serializer_class = PublicCommunityDetailSerializer
     lookup_field = 'slug'
 
-    def get_permissions(self):
-        if self.action == 'create':
-            permission_classes = [IsAuthenticated, IsAdminUser]
-        elif self.action == 'update' or self.action == 'partial_update':
-            permission_classes = [IsAuthenticated, IsOwnerOrManager]
-        elif self.action == 'list':
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsAuthenticated]
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['user'] = self.request.user
+        return context
 
-        return [permission() for permission in permission_classes]
+class ManageCommunityViewSet(viewsets.ModelViewSet, AuditMixin):
+    permission_classes = [IsAuthenticated, IsCommunityAdminOrManager]
+    queryset = Community.objects.all()
+    serializer_class = ManageCommunitySerializer
+    lookup_field = 'slug'
 
     def get_queryset(self):
         user = self.request.user
-
+        
         if user.is_staff or user.is_superuser:
             return self.queryset
 
-        user_memberships = CommunityMembership.objects.filter(user=user)
-        managed_communities = user_memberships.filter(
+        community_memberships = CommunityMembership.objects.filter(
+            user=user,
             role__in=[CommunityMembership.OWNER, CommunityMembership.MANAGER]
         ).values_list('community', flat=True)
 
-        member_communities = user_memberships.filter(
-            role=CommunityMembership.MEMBER
-        ).values_list('community', flat=True)
+        communities = Community.objects.filter(id__in=community_memberships)
+        
+        return communities
 
-        return self.queryset.filter(
-            Q(id__in=managed_communities) |
-            Q(id__in=member_communities)
-        ).distinct()
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        search_term = request.query_params.get('search', None)
-        if search_term:
-            queryset = queryset.filter(name__icontains=search_term)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'])
-    def public(self, request, *args, **kwargs):
-        """
-        Retrieve a list of active and public communities.
-        """
-        queryset = self.queryset.filter(is_active=True, is_published=True)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=True, methods=['create'])
-    def add_members(self, request, *args, **kwargs):
-        """
-        Allow Admin to add memebers in the community
-        """
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['user'] = self.request.user
+        return context
 
 
 class CommunityMembershipViewSet(mixins.ListModelMixin,
