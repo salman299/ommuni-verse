@@ -6,6 +6,7 @@ from app.core.models import Area
 from app.core.api.serializers.area import AreaSerializer
 
 class AreaListView(generics.ListAPIView):
+    pagination_class = None
     serializer_class = AreaSerializer
     permission_classes = (AllowAny,)
 
@@ -17,6 +18,7 @@ class AreaListView(generics.ListAPIView):
         return queryset
 
 class UniqueCitiesView(generics.ListAPIView):
+    pagination_class = None
     permission_classes = (AllowAny, )
 
     def list(self, request):
