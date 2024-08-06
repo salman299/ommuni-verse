@@ -20,7 +20,8 @@ class ManageCommunitySerializer(serializers.ModelSerializer):
         model = Community
         fields = ['id', 'slug', 'name', 'description', 'is_published', 'is_active', 
                   'area_name', 'logo', 'cover_image', 'color', 
-                  'total_participants', 'owner']
+                  'total_participants', 'owner', 'created_at']
+        read_only_fields = ('id', 'is_active', 'total_participants', 'created_at')
 
     def get_owner(self, obj):
         return obj.memberships.filter(role=CommunityMembership.OWNER).first()

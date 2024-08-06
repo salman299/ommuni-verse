@@ -62,6 +62,9 @@ class ManageCommunityViewSet(viewsets.ModelViewSet, AuditMixin):
     permission_classes = [IsAuthenticated, IsCommunityAdminOrManager]
     queryset = Community.objects.all()
     serializer_class = ManageCommunitySerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['area', 'area__city']
+    search_fields = ['name']
     lookup_field = 'slug'
 
     def get_queryset(self):
