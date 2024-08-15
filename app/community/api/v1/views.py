@@ -3,7 +3,8 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 # Third-party imports
-from rest_framework import mixins, status, viewsets, generics, filters
+from rest_framework import mixins, status, viewsets, generics
+from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -15,7 +16,7 @@ from app.community.models import (
     CommunityJoinRequest,
     CommunityMembership,
 )
-from app.community.permissions import IsCommunityAdminOrManager, IsOwnerOrManager
+from app.community.permissions import IsCommunityAdminOrManager
 from app.community.api.v1.serializers import (
     CommunityJoinRequestSerializer,
     CommunityMembershipSerializer,
@@ -38,9 +39,11 @@ class PublicCommunityListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Community.objects.filter(is_active=True, is_published=True)
     serializer_class = PublicCommunitySerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['area__name', 'area__city']
     search_fields = ['name', 'description']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['created_at']
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -57,14 +60,43 @@ class PublicCommunityDetailView(generics.RetrieveAPIView):
         context = super().get_serializer_context()
         context['user'] = self.request.user
         return context
+    
+
+class CommunityJoinView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = Community.objects.filter(is_active=True, is_published=True)
+    lookup_field = 'slug'
+
+    def create(self, request, *args, **kwargs):
+        # Get the community slug from the URL
+        community = self.get_object()
+
+        # Check if the user has already requested to join the community
+        if CommunityJoinRequest.objects.filter(community=community, user=request.user).exists():
+            return Response({"detail": "You have already requested to join this community."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Create the join request
+        serializer = CommunityJoinRequestSerializer(data={'community': community.id}, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_object(self):
+        return get_object_or_404(self.get_queryset(), slug=self.kwargs[self.lookup_field])
+
 
 class ManageCommunityViewSet(viewsets.ModelViewSet, AuditMixin):
     permission_classes = [IsAuthenticated, IsCommunityAdminOrManager]
     queryset = Community.objects.all()
     serializer_class = ManageCommunitySerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['area', 'area__city']
     search_fields = ['name']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['created_at']
     lookup_field = 'slug'
 
     def get_queryset(self):
@@ -88,22 +120,18 @@ class ManageCommunityViewSet(viewsets.ModelViewSet, AuditMixin):
         return context
 
 
-class CommunityMembershipViewSet(mixins.ListModelMixin,
-                                 mixins.CreateModelMixin,
-                                 mixins.DestroyModelMixin,
-                                 viewsets.GenericViewSet):
+class CommunityMembershipViewSet(viewsets.ModelViewSet, AuditMixin):
     queryset = CommunityMembership.objects.all()
     serializer_class = CommunityMembershipSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrManager]
-    lookup_field = 'slug'
+    permission_classes = [IsAuthenticated, IsCommunityAdminOrManager]
 
     def get_queryset(self):
         community_slug = self.kwargs.get('slug')
-        return self.queryset.filter(slug=community_slug)
+        return self.queryset.filter(community__slug=community_slug)
 
     def perform_create(self, serializer):
         community_slug = self.kwargs.get('slug')
-        community = get_object_or_404(Community, slug=community_slug)
+        community = get_object_or_404(Community, community__slug=community_slug)
         serializer.save(community=community)
 
     def destroy(self, request, *args, **kwargs):
@@ -120,11 +148,10 @@ class CommunityJoinRequestViewSet(mixins.CreateModelMixin,
     queryset = CommunityJoinRequest.objects.all()
     serializer_class = CommunityJoinRequestSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = 'slug'
 
     def get_queryset(self):
-        community_id = self.kwargs.get('slug')
-        return self.queryset.filter(community_id=community_id)
+        community_slug = self.kwargs.get('slug')
+        return self.queryset.filter(community__slug=community_slug)
 
     def perform_create(self, serializer):
         community_slug = self.kwargs.get('slug')
@@ -140,9 +167,3 @@ class CommunityJoinRequestViewSet(mixins.CreateModelMixin,
         serializer.save()
         return Response(serializer.data)
 
-    def get_permissions(self):
-        if self.action == 'create':
-            return [permission() for permission in self.permission_classes]
-        elif self.action in ['list', 'update']:
-            return [IsOwnerOrManager()]
-        return super().get_permissions()
