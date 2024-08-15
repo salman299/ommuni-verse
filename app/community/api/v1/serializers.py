@@ -97,20 +97,14 @@ class CommunityMembershipSerializer(serializers.ModelSerializer):
         return value
 
 class CommunityJoinRequestSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(
-        default=serializers.CurrentUserDefault()
-    )
-    
     class Meta:
         model = CommunityJoinRequest
-        fields = ('user', 'status')
+        fields = ('user', 'status', 'community__slug')
         read_only_fields = ('status',)
 
-    def validate(self, attrs):
-        community = self.context['view'].kwargs.get('community_pk')
-        user = self.context['request'].user
-        if CommunityMembership.objects.filter(community_id=community, user=user).exists():
-            raise serializers.ValidationError("You are already a member of this community.")
-        if CommunityJoinRequest.objects.filter(community_id=community, user=user).exists():
-            raise serializers.ValidationError("You have already requested to join this community.")
-        return attrs
+    def create(self, validated_data):
+        # Automatically set the user from the request
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+    
+

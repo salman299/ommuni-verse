@@ -11,8 +11,8 @@ app_name = 'commmunity_apis'
 
 api_v1_router = DefaultRouter()
 api_v1_router.register('communities', ManageCommunityViewSet, basename='manage-community')
-api_v1_router.register('communities/<slug:slug>/members', CommunityMembershipViewSet, basename='community-membership')
-api_v1_router.register('communities/<slug:slug>/join-requests', CommunityJoinRequestViewSet, basename='community-join-request')
+api_v1_router.register(r'communities/(?P<slug>[^/.]+)/members', CommunityMembershipViewSet, basename='community-membership')
+api_v1_router.register(r'communities/(?P<slug>[^/.]+)/join-requests', CommunityJoinRequestViewSet, basename='community-join-request')
 
 
 urlpatterns = [
