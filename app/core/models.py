@@ -119,7 +119,7 @@ class RelativesRelation(CustomTimeStampModel):
 class UserProfile(models.Model):
     """User profile model."""
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
 
     full_name = models.CharField(max_length=100, db_index=True)
     fathers_name = models.CharField(max_length=30, null=True, blank=True)
