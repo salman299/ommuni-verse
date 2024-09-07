@@ -106,16 +106,24 @@ class CommunityJoinRequest(models.Model):
 
     JOIN_REQUEST_STATUS_CHOICES = [
         (PENDING, 'Pending'),
-        (APPROVED, 'APPROVED'),
-        (DECLINED, 'DECLINED'),
+        (APPROVED, 'Approved'),
+        (DECLINED, 'Declined'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     community = models.ForeignKey(
         Community, on_delete=models.CASCADE, related_name='join_requests')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        User, related_name='%(class)s_updated', on_delete=models.SET_NULL, null=True, blank=True
+    )
     status = models.CharField(
         max_length=20, choices=JOIN_REQUEST_STATUS_CHOICES, default=PENDING)
+
+    @property
+    def user_full_name(self):
+        return self.user.profile.full_name
 
     def __str__(self):
         return f'Join request by {self.user.username} to {self.community.name}'
